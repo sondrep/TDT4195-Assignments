@@ -72,7 +72,7 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
 	    3,          // 3 for x, y and z
 	    gl::FLOAT,  // f32
 	    gl::FALSE,  // no normalisation
-	    0,          // Stride?
+	    0,          // Stride
 	    std::ptr::null());
     gl::EnableVertexAttribArray(0);
 
@@ -86,6 +86,24 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
     
     // * Return the ID of the VAO
     return vao_id;
+}
+
+unsafe fn generate_helix_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>){
+    let num_vertices = 1000;
+
+        for i in 0..num_vertices {
+            let mut angle = 5.0 * (2.0 * 3.14159 * (i as f32 / num_vertices as f32));
+            let mut x = 0.5 * angle.cos();
+            let mut z = 0.5 * angle.sin();
+            let mut y = -0.5 + i as f32 / num_vertices as f32;
+            vertices.push(x);
+            vertices.push(y);
+            vertices.push(z);
+        }
+
+        for i in 0..num_vertices {
+            indices.push(i as u32);
+        }
 }
 
 
@@ -148,41 +166,12 @@ fn main() {
             println!("GLSL\t: {}", util::get_gl_string(gl::SHADING_LANGUAGE_VERSION));
         }
 
-        // == // Set up your VAO around here
-        //let vertices: Vec<f32> = vec![
-        //    // top left
-        //    -0.9, 0.7,
-        //    -0.7, 0.7,
-        //    -0.8, 0.9,
-//
-        //    // top right
-        //     0.7, 0.7,
-        //     0.9, 0.7,
-        //     0.8, 0.9,
-//
-        //    // center
-        //    -0.1, -0.1,
-        //     0.1, -0.1,
-        //     0.0,  0.1,
-//
-        //    // bottom left
-        //    -0.9, -0.9,
-        //    -0.7, -0.9,
-        //    -0.8, -0.7,
-//
-        //    // bottom right
-        //     0.7, -0.9,
-        //     0.9, -0.9,
-        //     0.8, -0.7,
-        //];
-        let vertices: Vec<f32> = vec![
-            0.6, -0.8, -1.0,
-            0.0, 0.4, 0.0,
-            -0.8, -0.2, 1.0
-        ];
-        let indices: Vec<u32> = vec![0, 1, 2];
+        // Make vectors for vertices and indices
+        let mut vertices: Vec<f32> = Vec::new();
+        let mut indices: Vec<u32> = Vec::new();
+        unsafe {generate_helix_data(&mut vertices, &mut indices)};
 
-        let my_vao = unsafe {create_vao(&vertices, &indices)};
+        let mut my_vao = unsafe {create_vao(&vertices, &indices)};
 
 
         // == // Set up your shaders here
@@ -259,7 +248,7 @@ fn main() {
                 // == // Issue the necessary gl:: commands to draw your scene here
                 simple_shader.activate();
                 gl::BindVertexArray(my_vao);
-                gl::DrawElements(gl::TRIANGLES, indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
+                gl::DrawElements(gl::LINE_STRIP, indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
             }
 
             // Display the new color buffer on the display
