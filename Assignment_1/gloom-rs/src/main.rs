@@ -69,7 +69,7 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
     // * Configure a VAP for the data and enable it, Vertex Attributes hold format and stuff for data in VBO
     gl::VertexAttribPointer(
 	    0,          // Index
-	    2,          // 2 for x and y
+	    3,          // 3 for x, y and z
 	    gl::FLOAT,  // f32
 	    gl::FALSE,  // no normalisation
 	    0,          // Stride?
@@ -149,33 +149,38 @@ fn main() {
         }
 
         // == // Set up your VAO around here
+        //let vertices: Vec<f32> = vec![
+        //    // top left
+        //    -0.9, 0.7,
+        //    -0.7, 0.7,
+        //    -0.8, 0.9,
+//
+        //    // top right
+        //     0.7, 0.7,
+        //     0.9, 0.7,
+        //     0.8, 0.9,
+//
+        //    // center
+        //    -0.1, -0.1,
+        //     0.1, -0.1,
+        //     0.0,  0.1,
+//
+        //    // bottom left
+        //    -0.9, -0.9,
+        //    -0.7, -0.9,
+        //    -0.8, -0.7,
+//
+        //    // bottom right
+        //     0.7, -0.9,
+        //     0.9, -0.9,
+        //     0.8, -0.7,
+        //];
         let vertices: Vec<f32> = vec![
-            // top left
-            -0.9, 0.7,
-            -0.7, 0.7,
-            -0.8, 0.9,
-
-            // top right
-             0.7, 0.7,
-             0.9, 0.7,
-             0.8, 0.9,
-
-            // center
-            -0.1, -0.1,
-             0.1, -0.1,
-             0.0,  0.1,
-
-            // bottom left
-            -0.9, -0.9,
-            -0.7, -0.9,
-            -0.8, -0.7,
-
-            // bottom right
-             0.7, -0.9,
-             0.9, -0.9,
-             0.8, -0.7,
+            0.6, -0.8, -1.0,
+            0.0, 0.4, 0.0,
+            -0.8, -0.2, 1.0
         ];
-        let indices: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+        let indices: Vec<u32> = vec![0, 1, 2];
 
         let my_vao = unsafe {create_vao(&vertices, &indices)};
 
