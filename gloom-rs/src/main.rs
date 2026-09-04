@@ -126,26 +126,26 @@ unsafe fn generate_helix_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>, c
 }
 
 unsafe fn generate_triangle_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>, colours: &mut Vec<f32>){
-    let red: Vec<f32> = vec![1.0, 0.0, 0.0, 0.5];
-    let green: Vec<f32> = vec![0.0, 1.0, 0.0, 0.5];
-    let blue: Vec<f32> = vec![0.0, 0.0, 1.0, 0.5];
+    let red: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0];
+    let green: Vec<f32> = vec![0.0, 1.0, 0.0, 1.0];
+    let blue: Vec<f32> = vec![0.0, 0.0, 1.0, 1.0];
 
     // Triangle 1
     vertices.push(-0.8); // x0
     vertices.push(-0.2); // y0
-    vertices.push(-0.75); // z0
+    vertices.push(0.0); // z0
 
-    vertices.push(0.5); // x1
+    vertices.push(-0.6); // x1
     vertices.push(-0.2); // y1
-    vertices.push(-0.75); // z1
+    vertices.push(0.0); // z1
 
     vertices.push(-0.7); // x2
     vertices.push(0.0); // y2
-    vertices.push(-0.75); // z2
+    vertices.push(0.0); // z2
 
     colours.extend_from_slice(&red);
-    colours.extend_from_slice(&red);
-    colours.extend_from_slice(&red);
+    colours.extend_from_slice(&green);
+    colours.extend_from_slice(&blue);
 
     // Triangle 2
     vertices.push(-0.1); // x0
@@ -157,29 +157,29 @@ unsafe fn generate_triangle_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>
     vertices.push(0.0); // z1
 
     vertices.push(0.0); // x2
-    vertices.push(0.5); // y2
+    vertices.push(0.0); // y2
     vertices.push(0.0); // z2
 
     colours.extend_from_slice(&green);
-    colours.extend_from_slice(&green);
-    colours.extend_from_slice(&green);
+    colours.extend_from_slice(&blue);
+    colours.extend_from_slice(&red);
 
     
     // Triangle 3
     vertices.push(0.6); // x0
     vertices.push(-0.2); // y0
-    vertices.push(-0.5); // z0
+    vertices.push(0.0); // z0
 
     vertices.push(0.8); // x1
-    vertices.push(0.0); // y1
-    vertices.push(-0.5); // z1
+    vertices.push(-0.2); // y1
+    vertices.push(0.0); // z1
 
-    vertices.push(-0.6); // x2
+    vertices.push(0.7); // x2
     vertices.push(0.0); // y2
-    vertices.push(-0.5); // z2
+    vertices.push(0.0); // z2
 
-    colours.extend_from_slice(&blue);
-    colours.extend_from_slice(&blue);
+    colours.extend_from_slice(&red);
+    colours.extend_from_slice(&green);
     colours.extend_from_slice(&blue);
 
     for i in 0..9 {
@@ -344,6 +344,7 @@ fn main() {
 
                 // == // Issue the necessary gl:: commands to draw your scene here
                 simple_shader.activate();
+                gl::Uniform1f(2, elapsed.cos());
                 gl::BindVertexArray(helix_vao);
                 gl::DrawElements(gl::LINE_STRIP, helix_indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
                 gl::BindVertexArray(triangle_vao);
