@@ -110,10 +110,10 @@ unsafe fn generate_helix_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>, c
     let num_vertices = 1000;
 
     for i in 0..num_vertices {
-        let mut angle = 5.0 * (2.0 * 3.14159 * (i as f32 / num_vertices as f32));
-        let mut x = 0.5 * angle.cos();
-        let mut z = 0.5 * angle.sin();
-        let mut y = -0.5 + i as f32 / num_vertices as f32;
+        let angle = 5.0 * (2.0 * 3.14159 * (i as f32 / num_vertices as f32));
+        let x = 0.5 * angle.cos();
+        let z = 0.5 * angle.sin();
+        let y = -0.5 + i as f32 / num_vertices as f32;
         vertices.push(x);
         vertices.push(y);
         vertices.push(z);
@@ -200,6 +200,11 @@ fn main() {
     // Uncomment these if you want to use the mouse for controls, but want it to be confined to the screen and/or invisible.
     // windowed_context.window().set_cursor_grab(true).expect("failed to grab cursor");
     // windowed_context.window().set_cursor_visible(false);
+
+    // Set up variables for camera position and rotation
+    let mut camera_position = glm::vec3(0.0, 0.0, -2.0);
+    let mut horizontal_rotation = 0.0;
+    let mut vertical_rotation = 0.0;
 
     // Set up a shared vector for keeping track of currently pressed keys
     let arc_pressed_keys = Arc::new(Mutex::new(Vec::<VirtualKeyCode>::with_capacity(10)));
@@ -312,11 +317,36 @@ fn main() {
                         // The `VirtualKeyCode` enum is defined here:
                         //    https://docs.rs/winit/0.25.0/winit/event/enum.VirtualKeyCode.html
 
+                        VirtualKeyCode::W => {
+                            camera_position[2] += delta_time;
+                        }
                         VirtualKeyCode::A => {
-                            _arbitrary_number += delta_time;
+                            camera_position[0] += delta_time;
+                        }
+                        VirtualKeyCode::S => {
+                            camera_position[2] -= delta_time;
                         }
                         VirtualKeyCode::D => {
-                            _arbitrary_number -= delta_time;
+                            camera_position[0] -= delta_time;
+                        }
+                        VirtualKeyCode::LShift => {
+                            camera_position[1] += delta_time;
+                        }
+                        VirtualKeyCode::Space => {
+                            camera_position[1] -= delta_time;
+                        }
+
+                        VirtualKeyCode::Up => {
+                            vertical_rotation -= delta_time;
+                        }
+                        VirtualKeyCode::Down => {
+                            vertical_rotation += delta_time;
+                        }
+                        VirtualKeyCode::Left => {
+                            horizontal_rotation -= delta_time;
+                        }
+                        VirtualKeyCode::Right => {
+                            horizontal_rotation += delta_time;
                         }
 
 
@@ -335,8 +365,12 @@ fn main() {
             }
 
             // == // Please compute camera transforms here (exercise 2 & 3)
-
-
+            let identity_mat = glm::identity();
+            let perspective_mat = glm::perspective(window_aspect_ratio, std::f32::consts::FRAC_PI_4, 1.0, 100.0);
+            let translation_mat = glm::translation(&camera_position);
+            let horizontal_rotation_mat = glm::rotation(horizontal_rotation, &glm::vec3(0.0, 1.0, 0.0));
+            let vertical_rotation_mat = glm::rotation(vertical_rotation, &glm::vec3(1.0, 0.0, 0.0));
+            let matrix = perspective_mat * vertical_rotation_mat * horizontal_rotation_mat * translation_mat * identity_mat;
             unsafe {
                 // Clear the color and depth buffers
                 gl::ClearColor(0.035, 0.046, 0.078, 1.0); // night sky
@@ -344,7 +378,7 @@ fn main() {
 
                 // == // Issue the necessary gl:: commands to draw your scene here
                 simple_shader.activate();
-                gl::Uniform1f(2, elapsed.cos());
+                gl::UniformMatrix4fv(2, 1, gl::FALSE, matrix.as_ptr());
                 gl::BindVertexArray(helix_vao);
                 gl::DrawElements(gl::LINE_STRIP, helix_indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
                 gl::BindVertexArray(triangle_vao);
