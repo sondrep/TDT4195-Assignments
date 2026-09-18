@@ -202,7 +202,7 @@ fn main() {
     // windowed_context.window().set_cursor_visible(false);
 
     // Set up variables for camera position and rotation
-    let mut camera_position = glm::vec3(0.0, 0.0, -2.0);
+    let mut camera_position = glm::vec3(0.0, 0.0, 2.0);
     let mut horizontal_rotation = 0.0;
     let mut vertical_rotation = 0.0;
 
@@ -310,7 +310,10 @@ fn main() {
                 }
             }
 
+            let mut local_movement = glm::vec3(0.0, 0.0, 0.0);
+
             // Handle keyboard input
+            let movement_speed = 2.5;
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
@@ -318,35 +321,35 @@ fn main() {
                         //    https://docs.rs/winit/0.25.0/winit/event/enum.VirtualKeyCode.html
 
                         VirtualKeyCode::W => {
-                            camera_position[2] += delta_time;
+                            local_movement[2] -= movement_speed * delta_time;
                         }
                         VirtualKeyCode::A => {
-                            camera_position[0] += delta_time;
+                            local_movement[0] -= movement_speed * delta_time;
                         }
                         VirtualKeyCode::S => {
-                            camera_position[2] -= delta_time;
+                            local_movement[2] += movement_speed * delta_time;
                         }
                         VirtualKeyCode::D => {
-                            camera_position[0] -= delta_time;
+                            local_movement[0] += movement_speed * delta_time;
                         }
                         VirtualKeyCode::LShift => {
-                            camera_position[1] += delta_time;
+                            local_movement[1] -= movement_speed * delta_time;
                         }
                         VirtualKeyCode::Space => {
-                            camera_position[1] -= delta_time;
+                            local_movement[1] += movement_speed * delta_time;
                         }
 
                         VirtualKeyCode::Up => {
-                            vertical_rotation -= delta_time;
-                        }
-                        VirtualKeyCode::Down => {
                             vertical_rotation += delta_time;
                         }
+                        VirtualKeyCode::Down => {
+                            vertical_rotation -= delta_time;
+                        }
                         VirtualKeyCode::Left => {
-                            horizontal_rotation -= delta_time;
+                            horizontal_rotation += delta_time;
                         }
                         VirtualKeyCode::Right => {
-                            horizontal_rotation += delta_time;
+                            horizontal_rotation -= delta_time;
                         }
 
 
@@ -365,12 +368,30 @@ fn main() {
             }
 
             // == // Please compute camera transforms here (exercise 2 & 3)
-            let identity_mat = glm::identity();
-            let perspective_mat = glm::perspective(window_aspect_ratio, std::f32::consts::FRAC_PI_4, 1.0, 100.0);
-            let translation_mat = glm::translation(&camera_position);
-            let horizontal_rotation_mat = glm::rotation(horizontal_rotation, &glm::vec3(0.0, 1.0, 0.0));
-            let vertical_rotation_mat = glm::rotation(vertical_rotation, &glm::vec3(1.0, 0.0, 0.0));
-            let matrix = perspective_mat * vertical_rotation_mat * horizontal_rotation_mat * translation_mat * identity_mat;
+
+            // Rotate around the Y-axis since we have the 0.0, 1.0, 0.0 vector
+            let horizontal_rotation_mat = glm::rotation(-horizontal_rotation, &glm::vec3(0.0, 1.0, 0.0));
+
+            // Rotate around the X-axis since we have the 1.0, 0.0, 0.0 vector
+            let vertical_rotation_mat = glm::rotation(-vertical_rotation, &glm::vec3(1.0, 0.0, 0.0));
+
+            let view_rotation = vertical_rotation_mat * horizontal_rotation_mat;
+
+            // Used for the relative camera movement
+            let movement_rotation = glm::transpose(&view_rotation);
+
+            let local_movement4d = glm::vec4(local_movement[0], local_movement[1], local_movement[2], 0.0);
+
+            let world_direction4d = movement_rotation * local_movement4d;
+
+            // add the relative movement of the camera to the world coordinate camera position
+            camera_position += glm::vec3(world_direction4d[0], world_direction4d[1], world_direction4d[2]);
+
+            let translation_mat = glm::translation(&(-camera_position));
+
+            let perspective_mat = glm::perspective(window_aspect_ratio, std::f32::consts::FRAC_PI_4, 0.1, 100.0);
+
+            let matrix = perspective_mat * view_rotation * translation_mat;
             unsafe {
                 // Clear the color and depth buffers
                 gl::ClearColor(0.035, 0.046, 0.078, 1.0); // night sky
