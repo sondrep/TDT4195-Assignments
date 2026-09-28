@@ -15,6 +15,9 @@ use std::sync::{Mutex, Arc, RwLock};
 mod shader;
 mod util;
 mod mesh;
+mod scene_graph;
+
+use scene_graph::SceneNode;
 
 use glutin::event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState::{Pressed, Released}, VirtualKeyCode::{self, *}};
 use glutin::event_loop::ControlFlow;
@@ -47,6 +50,21 @@ fn size_of<T>() -> i32 {
 // Example usage:  offset::<u64>(4)
 fn offset<T>(n: u32) -> *const c_void {
     (n * mem::size_of::<T>() as u32) as *const T as *const c_void
+}
+
+unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) {
+    // Perform any logic needed before drawing the node
+
+    // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
+    if node.index_count > 0 {
+        gl::UniformMatrix4fv(0, 1, gl::FALSE, view_projection_matrix.as_ptr());
+        gl::BindVertexArray(node.vao_id);
+        gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
+    }
+    // Recurse
+    for &child in &node.children {
+        draw_scene(&*child, view_projection_matrix, transformation_so_far);
+    }
 }
 
 // Get a null pointer (equivalent to an offset of 0)
@@ -200,6 +218,64 @@ fn main() {
             )
         };
 
+        let helicopter = mesh::Helicopter::load("./resources/helicopter.obj");
+
+        let helicopter_body_vao = unsafe {
+            create_vao(
+                &helicopter.body.vertices,
+                &helicopter.body.indices,
+                &helicopter.body.colors,
+                &helicopter.body.normals
+            )
+        };
+
+        let helicopter_door_vao = unsafe {
+            create_vao(
+                &helicopter.door.vertices,
+                &helicopter.door.indices,
+                &helicopter.door.colors,
+                &helicopter.door.normals
+            )
+        };
+
+        let helicopter_main_rotor_vao = unsafe {
+            create_vao(
+                &helicopter.main_rotor.vertices,
+                &helicopter.main_rotor.indices,
+                &helicopter.main_rotor.colors,
+                &helicopter.main_rotor.normals
+            )
+        };
+
+        let helicopter_tail_rotor_vao = unsafe {
+            create_vao(
+                &helicopter.tail_rotor.vertices,
+                &helicopter.tail_rotor.indices,
+                &helicopter.tail_rotor.colors,
+                &helicopter.tail_rotor.normals
+            )
+        };
+
+        // Helicopter nodes:
+        // Heli children nodes
+        let heli_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter.door.index_count);
+        let heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
+        let heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
+
+        // Node for main body, parent of other heli nodes
+        let mut heli_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter.body.index_count);
+        heli_body_node.add_child(&heli_door_node);
+        heli_body_node.add_child(&heli_main_rotor_node);
+        heli_body_node.add_child(&heli_tail_rotor_node);
+
+        // Lunar surface node
+        let mut lunar_surface_node = SceneNode::from_vao(terrain_vao, terrain_data.index_count);
+        lunar_surface_node.add_child(&heli_body_node);
+
+        // Root node
+        let mut root_node = SceneNode::new();
+        root_node.add_child(&lunar_surface_node);
+
         // == // Set up your shaders here
         let simple_shader = unsafe {
             shader::ShaderBuilder::new()
@@ -237,7 +313,7 @@ fn main() {
             let mut local_movement = glm::vec3(0.0, 0.0, 0.0);
 
             // Handle keyboard input
-            let movement_speed = 10.5;
+            let movement_speed = 10.0;
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
@@ -323,9 +399,7 @@ fn main() {
 
                 // == // Issue the necessary gl:: commands to draw your scene here
                 simple_shader.activate();
-                gl::UniformMatrix4fv(0, 1, gl::FALSE, matrix.as_ptr());
-                gl::BindVertexArray(terrain_vao);
-                gl::DrawElements(gl::TRIANGLES, terrain_data.index_count, gl::UNSIGNED_INT, std::ptr::null());
+                draw_scene(&root_node, &matrix, &glm::identity());
             }
 
             // Display the new color buffer on the display
