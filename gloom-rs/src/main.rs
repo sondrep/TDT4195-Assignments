@@ -16,6 +16,7 @@ mod shader;
 mod util;
 mod mesh;
 mod scene_graph;
+mod toolbox;
 
 use scene_graph::SceneNode;
 
@@ -54,16 +55,33 @@ fn offset<T>(n: u32) -> *const c_void {
 
 unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4, transformation_so_far: &glm::Mat4) {
     // Perform any logic needed before drawing the node
+    let translate_from_ref = glm::translation(&(-node.reference_point)); // To translate from reference point to origin
+    let translate_to_ref   = glm::translation(&node.reference_point); // Translate back from origin to reference point
+
+    let rotation_x = glm::rotation(node.rotation.x, &glm::vec3(1.0, 0.0, 0.0));
+    let rotation_y = glm::rotation(node.rotation.y, &glm::vec3(0.0, 1.0, 0.0));
+    let rotation_z = glm::rotation(node.rotation.z, &glm::vec3(0.0, 0.0, 1.0));
+
+    let scale = glm::scaling(&node.scale);
+    let translate_to_pos = glm::translation(&node.position);
+
+    let local_transform = translate_to_pos * translate_to_ref // Finally translate back to reference point and to final position
+        * rotation_x * rotation_y * rotation_z // Then scaling, then rotation
+        * scale
+        * translate_from_ref; // Translate from reference point to origin first
+
+    let current_transform = transformation_so_far * local_transform; // Current transform so children can continue from this point
 
     // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
     if node.index_count > 0 {
-        gl::UniformMatrix4fv(0, 1, gl::FALSE, view_projection_matrix.as_ptr());
+        let final_matrix = view_projection_matrix * current_transform;
+        gl::UniformMatrix4fv(0, 1, gl::FALSE, final_matrix.as_ptr());
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
     }
     // Recurse
     for &child in &node.children {
-        draw_scene(&*child, view_projection_matrix, transformation_so_far);
+        draw_scene(&*child, view_projection_matrix, &current_transform);
     }
 }
 
@@ -259,8 +277,10 @@ fn main() {
         // Helicopter nodes:
         // Heli children nodes
         let heli_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter.door.index_count);
-        let heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
-        let heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
+        let mut heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
+        heli_main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+        let mut heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
+        heli_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
 
         // Node for main body, parent of other heli nodes
         let mut heli_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter.body.index_count);
@@ -366,6 +386,11 @@ fn main() {
 
                 *delta = (0.0, 0.0); // reset when done
             }
+
+            // Make the rotors spin brrrr
+            let rotation_speed = 100.0;
+            heli_tail_rotor_node.rotation.x += rotation_speed*delta_time;
+            heli_main_rotor_node.rotation.y += rotation_speed*delta_time;
 
             // == // Please compute camera transforms here (exercise 2 & 3)
 
