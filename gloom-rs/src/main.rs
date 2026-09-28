@@ -76,6 +76,7 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm
     if node.index_count > 0 {
         let final_matrix = view_projection_matrix * current_transform;
         gl::UniformMatrix4fv(0, 1, gl::FALSE, final_matrix.as_ptr());
+        gl::UniformMatrix4fv(1, 1, gl::FALSE, current_transform.as_ptr());
         gl::BindVertexArray(node.vao_id);
         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
     }
@@ -274,23 +275,36 @@ fn main() {
             )
         };
 
-        // Helicopter nodes:
-        // Heli children nodes
-        let heli_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter.door.index_count);
-        let mut heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
-        heli_main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
-        let mut heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
-        heli_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
-
-        // Node for main body, parent of other heli nodes
-        let mut heli_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter.body.index_count);
-        heli_body_node.add_child(&heli_door_node);
-        heli_body_node.add_child(&heli_main_rotor_node);
-        heli_body_node.add_child(&heli_tail_rotor_node);
+        let NUM_HELIS = 5;
+        let mut heli_door_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
+        let mut heli_main_rotor_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
+        let mut heli_tail_rotor_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
+        let mut heli_body_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
 
         // Lunar surface node
         let mut lunar_surface_node = SceneNode::from_vao(terrain_vao, terrain_data.index_count);
-        lunar_surface_node.add_child(&heli_body_node);
+        for i in 0..NUM_HELIS {
+            // Helicopter nodes:
+            // Heli children nodes
+            let heli_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter.door.index_count);
+            let mut heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
+            heli_main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+            let mut heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
+            heli_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
+ 
+            // Node for main body, parent of other heli nodes
+            let mut heli_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter.body.index_count);
+            heli_body_node.add_child(&heli_door_node);
+            heli_body_node.add_child(&heli_main_rotor_node);
+            heli_body_node.add_child(&heli_tail_rotor_node);
+ 
+            lunar_surface_node.add_child(&heli_body_node);
+ 
+            heli_door_nodes.push(heli_door_node);
+            heli_main_rotor_nodes.push(heli_main_rotor_node);
+            heli_tail_rotor_nodes.push(heli_tail_rotor_node);
+            heli_body_nodes.push(heli_body_node);
+        }
 
         // Root node
         let mut root_node = SceneNode::new();
@@ -389,8 +403,20 @@ fn main() {
 
             // Make the rotors spin brrrr
             let rotation_speed = 100.0;
-            heli_tail_rotor_node.rotation.x += rotation_speed*delta_time;
-            heli_main_rotor_node.rotation.y += rotation_speed*delta_time;
+
+            for i in 0..NUM_HELIS {
+                heli_tail_rotor_nodes[i].rotation.x += rotation_speed*delta_time;
+                heli_main_rotor_nodes[i].rotation.y += rotation_speed*delta_time;
+
+                let heading = toolbox::simple_heading_animation(elapsed + (i as f32) * 0.8);
+
+                heli_body_nodes[i].position.x = heading.x;
+                heli_body_nodes[i].position.z = heading.z;
+
+                heli_body_nodes[i].rotation.x = heading.pitch;
+                heli_body_nodes[i].rotation.y = heading.yaw;
+                heli_body_nodes[i].rotation.z = heading.roll;
+            }
 
             // == // Please compute camera transforms here (exercise 2 & 3)
 
