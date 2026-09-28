@@ -14,6 +14,7 @@ use std::sync::{Mutex, Arc, RwLock};
 
 mod shader;
 mod util;
+mod mesh;
 
 use glutin::event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState::{Pressed, Released}, VirtualKeyCode::{self, *}};
 use glutin::event_loop::ControlFlow;
@@ -52,18 +53,18 @@ fn offset<T>(n: u32) -> *const c_void {
 // ptr::null()
 
 // == // Generate your VAO here
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colour: &Vec<f32>) -> u32 {
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colour: &Vec<f32>, normal: &Vec<f32>) -> u32 {
     // * Generate a VAO and bind it, holds formatted data from VBO and forwards it to shader
     let mut vao_id: u32 = 0;
     gl::GenVertexArrays(1, &mut vao_id);
     gl::BindVertexArray(vao_id); 
 
-    // * Generate a VBO and bind it, the VBO holds vertices
+    // * Generate a vertex VBO and bind it, the vertex VBO holds vertices
     let mut vbo_id: u32 = 0;
     gl::GenBuffers(1, &mut vbo_id);
     gl::BindBuffer(gl::ARRAY_BUFFER, vbo_id);
 
-    // * Fill VBO with data
+    // * Fill vertex VBO with data
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(vertices), pointer_to_array(&vertices), gl::STATIC_DRAW);
 
     // * Configure a VAP for the data and enable it, Vertex Attributes hold format and stuff for data in VBO
@@ -81,7 +82,7 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colour: &Vec<f32>)
     gl::GenBuffers(1, &mut colour_vbo_id);
     gl::BindBuffer(gl::ARRAY_BUFFER, colour_vbo_id);
 
-    // * Fill VBO with data
+    // * Fill  colour VBO with data
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(colour), pointer_to_array(&colour), gl::STATIC_DRAW);
 
     // * Configure a VAP for the data and enable it, Vertex Attributes hold format and stuff for data in VBO
@@ -94,6 +95,24 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colour: &Vec<f32>)
 	    std::ptr::null());
     gl::EnableVertexAttribArray(1);
 
+    // Generate a normal VBO and bind it
+    let mut normal_vbo_id = 0;
+    gl::GenBuffers(1, &mut normal_vbo_id);
+    gl::BindBuffer(gl::ARRAY_BUFFER, normal_vbo_id);
+
+    // Fill normal VBO with data
+    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(normal), pointer_to_array(&normal), gl::STATIC_DRAW);
+
+    // * Configure a VAP for the data and enable it, Vertex Attributes hold format and stuff for data in VBO
+    gl::VertexAttribPointer(
+	    2,          // Index
+	    3,          // 3 for x, y, z of normal
+	    gl::FLOAT,  // f32
+	    gl::FALSE,  // no normalisation
+	    0,          // Stride
+	    std::ptr::null());
+    gl::EnableVertexAttribArray(2);
+
     // * Generate a IBO and bind it, Index Buffer Object?
     let mut ibo_id: u32 = 0;
     gl::GenBuffers(1, &mut ibo_id);
@@ -104,87 +123,6 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colour: &Vec<f32>)
     
     // * Return the ID of the VAO
     return vao_id;
-}
-
-unsafe fn generate_helix_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>, colours: &mut Vec<f32>){
-    let num_vertices = 1000;
-
-    for i in 0..num_vertices {
-        let angle = 5.0 * (2.0 * 3.14159 * (i as f32 / num_vertices as f32));
-        let x = 0.5 * angle.cos();
-        let z = 0.5 * angle.sin();
-        let y = -0.5 + i as f32 / num_vertices as f32;
-        vertices.push(x);
-        vertices.push(y);
-        vertices.push(z);
-        colours.push(2.0*x);
-        colours.push(2.0*y);
-        colours.push(2.0*z);
-        colours.push(i as f32 / num_vertices as f32);
-        indices.push(i as u32);
-    }
-}
-
-unsafe fn generate_triangle_data(vertices: &mut Vec<f32>, indices: &mut Vec<u32>, colours: &mut Vec<f32>){
-    let red: Vec<f32> = vec![1.0, 0.0, 0.0, 1.0];
-    let green: Vec<f32> = vec![0.0, 1.0, 0.0, 1.0];
-    let blue: Vec<f32> = vec![0.0, 0.0, 1.0, 1.0];
-
-    // Triangle 1
-    vertices.push(-0.8); // x0
-    vertices.push(-0.2); // y0
-    vertices.push(0.0); // z0
-
-    vertices.push(-0.6); // x1
-    vertices.push(-0.2); // y1
-    vertices.push(0.0); // z1
-
-    vertices.push(-0.7); // x2
-    vertices.push(0.0); // y2
-    vertices.push(0.0); // z2
-
-    colours.extend_from_slice(&red);
-    colours.extend_from_slice(&green);
-    colours.extend_from_slice(&blue);
-
-    // Triangle 2
-    vertices.push(-0.1); // x0
-    vertices.push(-0.2); // y0
-    vertices.push(0.0); // z0
-
-    vertices.push(0.1); // x1
-    vertices.push(-0.2); // y1
-    vertices.push(0.0); // z1
-
-    vertices.push(0.0); // x2
-    vertices.push(0.0); // y2
-    vertices.push(0.0); // z2
-
-    colours.extend_from_slice(&green);
-    colours.extend_from_slice(&blue);
-    colours.extend_from_slice(&red);
-
-    
-    // Triangle 3
-    vertices.push(0.6); // x0
-    vertices.push(-0.2); // y0
-    vertices.push(0.0); // z0
-
-    vertices.push(0.8); // x1
-    vertices.push(-0.2); // y1
-    vertices.push(0.0); // z1
-
-    vertices.push(0.7); // x2
-    vertices.push(0.0); // y2
-    vertices.push(0.0); // z2
-
-    colours.extend_from_slice(&red);
-    colours.extend_from_slice(&green);
-    colours.extend_from_slice(&blue);
-
-    for i in 0..9 {
-        indices.push(i as u32);
-    }
 }
 
 fn main() {
@@ -251,30 +189,16 @@ fn main() {
             println!("GLSL\t: {}", util::get_gl_string(gl::SHADING_LANGUAGE_VERSION));
         }
 
-        // Make vectors for vertices and indices
-        let mut helix_vertices: Vec<f32> = Vec::new();
-        let mut helix_indices: Vec<u32> = Vec::new();
-        let mut helix_colours: Vec<f32> = Vec::new();
+        let terrain_data = mesh::Terrain::load("./resources/lunarsurface.obj");
 
-        unsafe {generate_helix_data(&mut helix_vertices, 
-                                    &mut helix_indices, 
-                                    &mut helix_colours)};
-
-        let mut helix_vao = unsafe {create_vao(&helix_vertices, 
-                                               &helix_indices, 
-                                               &helix_colours)};
-
-        let mut triangle_vertices: Vec<f32> = Vec::new();
-        let mut triangle_indices: Vec<u32> = Vec::new();
-        let mut triangle_colours: Vec<f32> = Vec::new();
-
-        unsafe {generate_triangle_data(&mut triangle_vertices, 
-                                       &mut triangle_indices, 
-                                       &mut triangle_colours)};
-
-        let mut triangle_vao = unsafe {create_vao(&triangle_vertices, 
-                                                  &triangle_indices, 
-                                                  &triangle_colours)};
+        let terrain_vao = unsafe {
+            create_vao(
+                &terrain_data.vertices,
+                &terrain_data.indices,
+                &terrain_data.colors,
+                &terrain_data.normals
+            )
+        };
 
         // == // Set up your shaders here
         let simple_shader = unsafe {
@@ -313,7 +237,7 @@ fn main() {
             let mut local_movement = glm::vec3(0.0, 0.0, 0.0);
 
             // Handle keyboard input
-            let movement_speed = 2.5;
+            let movement_speed = 10.5;
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
@@ -389,7 +313,7 @@ fn main() {
 
             let translation_mat = glm::translation(&(-camera_position));
 
-            let perspective_mat = glm::perspective(window_aspect_ratio, std::f32::consts::FRAC_PI_4, 0.1, 100.0);
+            let perspective_mat = glm::perspective(window_aspect_ratio, std::f32::consts::FRAC_PI_4, 0.1, 1000.0);
 
             let matrix = perspective_mat * view_rotation * translation_mat;
             unsafe {
@@ -399,11 +323,9 @@ fn main() {
 
                 // == // Issue the necessary gl:: commands to draw your scene here
                 simple_shader.activate();
-                gl::UniformMatrix4fv(2, 1, gl::FALSE, matrix.as_ptr());
-                gl::BindVertexArray(helix_vao);
-                gl::DrawElements(gl::LINE_STRIP, helix_indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
-                gl::BindVertexArray(triangle_vao);
-                gl::DrawElements(gl::TRIANGLES, triangle_indices.len() as i32, gl::UNSIGNED_INT, std::ptr::null());
+                gl::UniformMatrix4fv(0, 1, gl::FALSE, matrix.as_ptr());
+                gl::BindVertexArray(terrain_vao);
+                gl::DrawElements(gl::TRIANGLES, terrain_data.index_count, gl::UNSIGNED_INT, std::ptr::null());
             }
 
             // Display the new color buffer on the display
