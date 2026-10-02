@@ -7,6 +7,8 @@
 #![allow(unused_unsafe)]
 #![allow(unused_variables)]
 */
+#![allow(dead_code)]
+
 extern crate nalgebra_glm as glm;
 use std::{ mem, ptr, os::raw::c_void };
 use std::thread;
@@ -66,13 +68,13 @@ unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm
     let translate_to_pos = glm::translation(&node.position);
 
     let local_transform = translate_to_pos * translate_to_ref // Finally translate back to reference point and to final position
-        * rotation_x * rotation_y * rotation_z // Then scaling, then rotation
-        * scale
+        * rotation_x * rotation_y * rotation_z // Then rotation
+        * scale // Then scaling
         * translate_from_ref; // Translate from reference point to origin first
 
     let current_transform = transformation_so_far * local_transform; // Current transform so children can continue from this point
 
-    // Check if node is drawable, if so: set uniforms, bind VAO and draw VAO
+    // Check if node has indices, if so set uniforms, bind VAO and draw VAO
     if node.index_count > 0 {
         let final_matrix = view_projection_matrix * current_transform;
         gl::UniformMatrix4fv(0, 1, gl::FALSE, final_matrix.as_ptr());
@@ -275,7 +277,8 @@ fn main() {
             )
         };
 
-        let NUM_HELIS = 5;
+        // Make vectors and allocate enough memory for 5 helis
+        const NUM_HELIS: usize = 5;
         let mut heli_door_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
         let mut heli_main_rotor_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
         let mut heli_tail_rotor_nodes: Vec<scene_graph::Node> = Vec::with_capacity(NUM_HELIS);
@@ -283,23 +286,27 @@ fn main() {
 
         // Lunar surface node
         let mut lunar_surface_node = SceneNode::from_vao(terrain_vao, terrain_data.index_count);
-        for i in 0..NUM_HELIS {
+        for _i in 0..NUM_HELIS {
             // Helicopter nodes:
-            // Heli children nodes
+            // Heli children nodes:
             let heli_door_node = SceneNode::from_vao(helicopter_door_vao, helicopter.door.index_count);
+
             let mut heli_main_rotor_node = SceneNode::from_vao(helicopter_main_rotor_vao, helicopter.main_rotor.index_count);
             heli_main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+            
             let mut heli_tail_rotor_node = SceneNode::from_vao(helicopter_tail_rotor_vao, helicopter.tail_rotor.index_count);
             heli_tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
  
-            // Node for main body, parent of other heli nodes
+            // Node for main body, parent of other heli nodes, so those are added as children
             let mut heli_body_node = SceneNode::from_vao(helicopter_body_vao, helicopter.body.index_count);
             heli_body_node.add_child(&heli_door_node);
             heli_body_node.add_child(&heli_main_rotor_node);
             heli_body_node.add_child(&heli_tail_rotor_node);
- 
+            
+            // Make the lunar surface the parent of the body of the helicopter
             lunar_surface_node.add_child(&heli_body_node);
- 
+            
+            // Push the new nodes I make to the vectors outside the loop
             heli_door_nodes.push(heli_door_node);
             heli_main_rotor_nodes.push(heli_main_rotor_node);
             heli_tail_rotor_nodes.push(heli_tail_rotor_node);
@@ -347,7 +354,7 @@ fn main() {
             let mut local_movement = glm::vec3(0.0, 0.0, 0.0);
 
             // Handle keyboard input
-            let movement_speed = 10.0;
+            let movement_speed = 80.0;
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
@@ -407,7 +414,7 @@ fn main() {
             for i in 0..NUM_HELIS {
                 heli_tail_rotor_nodes[i].rotation.x += rotation_speed*delta_time;
                 heli_main_rotor_nodes[i].rotation.y += rotation_speed*delta_time;
-
+                // multiplying i by 0.8 was just trial and error till I visually saw no clipping, there might be a more elegant way
                 let heading = toolbox::simple_heading_animation(elapsed + (i as f32) * 0.8);
 
                 heli_body_nodes[i].position.x = heading.x;
